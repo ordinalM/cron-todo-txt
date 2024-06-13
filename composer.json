@@ -1,0 +1,20 @@
+{
+  "name": "ordinal/cron-todo-txt",
+  "autoload": {
+    "psr-4": {
+      "Ordinal\\CronTodoTxt\\": "src/"
+    }
+  },
+  "authors": [
+    {
+      "name": "Ordinal M",
+      "email": "ordinal@ordinalmalaprop.com"
+    }
+  ],
+  "require": {
+    "cakephp/chronos": "^3.0"
+  },
+  "platform": {
+    "php": "^8.1"
+  }
+}

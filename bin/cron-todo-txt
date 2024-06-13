@@ -1,0 +1,20 @@
+#!/usr/bin/env php
+<?php
+
+use Ordinal\CronTodoTxt\CronToDoTxt;
+
+require __DIR__.'/../vendor/autoload.php';
+
+
+$debug = false;
+$live = false;
+foreach ($argv as $arg) {
+    if (str_starts_with($arg, '--debug')) {
+        $debug = true;
+    }
+    if (str_starts_with($arg, '--live')) {
+        $live = true;
+    }
+}
+
+(new CronToDoTxt(debug: $debug, live: $live))->processRepeats();
