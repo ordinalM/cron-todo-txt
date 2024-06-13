@@ -150,7 +150,7 @@ class CronToDoTxt
 
     private function runToDoTxtAdd(string $todo): void
     {
-        $todotxt_command = sprintf("/usr/bin/todo-txt add '%s'", str_replace("'", "\'", $todo));
+        $todotxt_command = sprintf("%s add '%s'", $this->config->getValue(Config::KEY_TODOTXT_PATH), str_replace("'", "\'", $todo));
         $this->log('Running ' . $todotxt_command);
         exec($todotxt_command, $output);
         echo implode(PHP_EOL, $output) . PHP_EOL;

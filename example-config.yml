@@ -1,1 +1,2 @@
 repeat_file: /home/foo/todo/repeat.txt
+# todotxt_path: /path/to/todo-txt (if not /usr/bin/todo-txt)
