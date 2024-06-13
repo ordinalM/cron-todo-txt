@@ -57,3 +57,7 @@ e.g.
 ### In case of error in the file
 
 If the code is unable to parse a date or line it will output an error and also comment out the line concerned (if run with `--live`). It will process any other lines as usual.
+
+## TODO
+
+- Convert to have functions running as todo-txt addons
