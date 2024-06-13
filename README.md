@@ -2,6 +2,11 @@
 
 todo.txt cron utilities
 
+## Requirements
+
+- Command line PHP 8.1 or higher
+- `todo-txt` CLI - see http://todotxt.org/
+
 ## Installation
 
 Copy `example-config.yml` to `config.yml` and edit the latter to include:
