@@ -1,6 +1,6 @@
 <?php
 
-namespace Ordinal\CronTodoTxt;
+namespace OrdinalM\CronTodoTxt;
 
 use Exception;
 

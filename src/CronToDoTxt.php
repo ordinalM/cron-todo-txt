@@ -1,6 +1,6 @@
 <?php
 
-namespace Ordinal\CronTodoTxt;
+namespace OrdinalM\CronTodoTxt;
 
 use DateInterval;
 use DateTimeImmutable;
@@ -8,19 +8,19 @@ use Throwable;
 
 class CronToDoTxt
 {
-    private const DIR_TODO_TXT = '~/Dropbox/Documents/ToDo/';
-    private const FILE_REPEAT = 'repeat.txt';
     private const REPEAT_REGEX = '/ (repeat|rec):([^ ]+)/';
     private DateTimeImmutable $Now;
+    private Config $config;
 
     public function __construct(private readonly bool $debug = false, private readonly bool $live = false)
     {
         $this->Now = new DateTimeImmutable();
+        $this->config = new Config();
     }
 
     public function processRepeats(): void
     {
-        $repeat_file = $this->getBaseDir() . self::FILE_REPEAT;
+        $repeat_file = $this->config->getValue(Config::KEY_REPEAT_FILE);
         if (!file_exists($repeat_file)) {
             $this->log('ERROR: File not found: ' . $repeat_file);
             return;
@@ -107,11 +107,6 @@ class CronToDoTxt
 
         $this->log('Changes made, writing new file to ' . $repeat_file);
         file_put_contents($repeat_file, implode(PHP_EOL, $new_lines));
-    }
-
-    private function getBaseDir(): string
-    {
-        return str_replace('~', $_SERVER['HOME'], self::DIR_TODO_TXT);
     }
 
     private function log(string $message): void

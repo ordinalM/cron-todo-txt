@@ -1,10 +1,9 @@
 #!/usr/bin/env php
 <?php
 
-use Ordinal\CronTodoTxt\CronToDoTxt;
+use OrdinalM\CronTodoTxt\CronToDoTxt;
 
-require __DIR__.'/../vendor/autoload.php';
-
+require __DIR__ . '/../vendor/autoload.php';
 
 $debug = false;
 $live = false;
