@@ -21,17 +21,30 @@ ln -s /path/to/this/project/bin/schedule
 
 ## Usage
 
-Run `bin/process` which has two possible parameters:
+### Scheduling a task
 
-- `--debug` prints debug output
-- `--live` adds files/makes changes to tasks; if not set, just does a dummy run
+Add the task to your `todo.txt` as normal and then use
+```
+todo-txt schedule add <n> <date to schedule to> (<optional repeat>)
+```
+e.g.
+```shell
+todo-txt schedule add 1 tomorrow 1w
+```
 
-You can test everything is working with `bin/process --debug`
+### Listing scheduled tasks
+```
+todo-txt schedule ls|list (<optional search term>)
+```
 
-### Example crontab entry
+### Processing the schedule
+
+Run `todo-txt schedule process` to add any scheduled tasks that should be added right now. It has one possible parameter, `live` - if this is set it will actually make the changes, otherwise it will just print debug output which is perfectly safe.
+
+#### Example crontab entry
 
 ```
-*/15 * * * * /home/foo/code/cron-todo-txt/bin/process --live >> /home/foo/logs/cron-todo-txt.log 2>&1
+*/15 * * * * /usr/bin/todo-txt schedule process live >> /home/foo/logs/cron-todo-txt.log 2>&1
 ```
 
 to run every 15 minutes and output to `/home/foo/logs/cron-todo-txt.log`
@@ -69,3 +82,5 @@ If the code is unable to parse a date or line it will output an error and also c
 - [ ] Proper tests
 - [ ] Structs for the scheduled file
 - [ ] Split out the `ToDoTxt*` classes into a separate module for handling `todo-txt` files in PHP.
+- [ ] A command for users to delete repeated tasks
+- [ ] A command to add repeated tasks directly, not just from the existing task list

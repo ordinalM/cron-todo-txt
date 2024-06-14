@@ -322,6 +322,6 @@ USAGE;
     private function runToDoTxtAdd(string $todo): void
     {
         $this->log('Adding ' . $todo);
-        echo $this->todotxt->runCommand('add', [$todo]);
+        echo $this->todotxt->runCommand('add', [$todo]) . "\n";
     }
 }
