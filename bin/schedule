@@ -1,0 +1,9 @@
+#!/usr/bin/env php
+<?php
+
+use OrdinalM\CronTodoTxt\ActionSchedule;
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+$result_code = (new ActionSchedule())->action($argv);
+exit($result_code);

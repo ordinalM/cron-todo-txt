@@ -6,13 +6,18 @@ todo.txt cron utilities
 
 - Command line PHP 8.1 or higher
 - `todo-txt` CLI - see http://todotxt.org/
+- `composer` - see https://getcomposer.org/
 
 ## Installation
 
-Copy `example-config.yml` to `config.yml` and edit the latter to include:
+- Run `composer install` from the project root.
+- Install `bin/schedule` as an action for `todo-txt` - see https://github.com/todotxt/todo.txt-cli/wiki/Creating-and-Installing-Add-ons. It is recommended that you symlink to the file in the project from your actions directory e.g.
 
-- the path to your repeat file
-- the path to your `todo-txt` if it is not `/usr/bin/todo-txt`
+```shell
+mkdir -p ~/.todo.actions.d
+cd ~/.todo.actions.d
+ln -s /path/to/this/project/bin/schedule
+```
 
 ## Usage
 
@@ -60,4 +65,7 @@ If the code is unable to parse a date or line it will output an error and also c
 
 ## TODO
 
-- Convert to have functions running as todo-txt addons
+- [x] Convert to have functions running as todo-txt addons
+- [ ] Proper tests
+- [ ] Structs for the scheduled file
+- [ ] Split out the `ToDoTxt*` classes into a separate module for handling `todo-txt` files in PHP.

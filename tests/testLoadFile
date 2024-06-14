@@ -1,0 +1,82 @@
+#!/usr/bin/env php
+<?php
+
+use OrdinalM\CronTodoTxt\ToDoTxtFile;
+
+require __DIR__ . '/../vendor/autoload.php';
+
+$test_file_contents = <<<TASKS
+task without dates
+x done task
+2024-01-01 task with a created date
+
+x 2024-01-02 2024-01-01 task with both dates which it should have
+
+task with @context1 and @context2 and +project1 and +project2
+TASKS;
+
+// Array indices, not lines
+$has_created = [2, 4];
+$is_done = [1, 4];
+$has_completed = [4];
+$is_empty = [3, 5];
+
+$test_file = __DIR__ . '/test-todo.txt';
+
+function removeTestFile(string $test_file): void
+{
+    unlink($test_file);
+}
+
+/**
+ * @throws Exception
+ */
+function assertTrue(bool $condition, string $message): void
+{
+    if ($condition) {
+        return;
+    }
+    throw new Exception($message);
+}
+
+/**
+ * @throws Exception
+ */
+function assertSameArray(array $expected, array $actual, string $message): void
+{
+    echo "Checking arrays for $message\n";
+    if (count($expected) !== count($actual)) {
+        throw new Exception(sprintf("wrong number of elements - %s - expected %d actual %d", $message, count($expected), count($actual)));
+    }
+    foreach ($expected as $key => $expected_value) {
+        $actual_value = $actual[$key] ?? null;
+        if ($actual_value !== $expected_value) {
+            throw new Exception(sprintf('key %s is not the same - %s - expected %s actual %s', $key, $message, $expected_value, $actual_value));
+        }
+    }
+}
+
+file_put_contents($test_file, $test_file_contents);
+
+try {
+    $todo_file = ToDoTxtFile::loadFromFile(__DIR__ . '/test-todo.txt');
+    $tasks = $todo_file->getTasks();
+    assertTrue(count($tasks) === count(explode("\n", $test_file_contents)), 'wrong task count - ' . print_r($tasks, 1));
+    foreach ($todo_file->getTasks() as $n => $task) {
+        echo "Checking line $n - " . $task . "\n";
+        assertTrue($task->isEmpty() === in_array($n, $is_empty), 'bad empty status');
+        assertTrue(($task->getCreated() !== null) === in_array($n, $has_created), 'bad created date');
+        assertTrue(($task->getCompleted() !== null) === in_array($n, $has_completed), 'bad completed date');
+        assertTrue(($task->isDone()) === in_array($n, $is_done), 'bad done status');
+    }
+    $context_line = $todo_file->getTask(7);
+    assertSameArray(['context1', 'context2'], $context_line->getContexts(), 'contexts');
+    assertSameArray(['project1', 'project2'], $context_line->getProjects(), 'projects');
+} catch (Throwable $e) {
+    echo "FAILURE!\n" . $e . "\n";
+    removeTestFile($test_file);
+    exit(1);
+}
+
+removeTestFile($test_file);
+echo "No problems!\n";
