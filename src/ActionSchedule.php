@@ -258,9 +258,11 @@ USAGE;
 
                 $to_add[] = self::stripRepeatFromToDo($todo);
 
+                // There will always be some sort of change to the schedule file if we reach this point
+                $changes_made = true;
+
                 if (!$new_date) {
                     $this->log(sprintf("Dropping line %d: %s", $n, $line));
-                    $changes_made = true;
                     continue;
                 }
 
@@ -274,26 +276,9 @@ USAGE;
             }
         }
 
-        if (count($to_add) === 0) {
-            $this->debug('No tasks to add');
-        }
+        $this->addNewToDos($to_add);
+        $this->writeChangedScheduleFile($changes_made, $new_lines, $repeat_file);
 
-        if (!$this->live) {
-            $this->log('Not live, will not change anything');
-
-            return 0;
-        }
-
-        foreach ($to_add as $todo) {
-            $this->runToDoTxtAdd($todo);
-        }
-
-        if (!$changes_made) {
-            return 0;
-        }
-
-        $this->log('Changes made, writing new file to ' . $repeat_file);
-        file_put_contents($repeat_file, implode(PHP_EOL, $new_lines));
         return 0;
     }
 
@@ -319,9 +304,50 @@ USAGE;
         return preg_replace(self::REPEAT_REGEX, '', $todo);
     }
 
+    private function addNewToDos(array $to_add): void
+    {
+        if (count($to_add) === 0) {
+            $this->debug('No tasks to add');
+
+            return;
+        }
+
+        if (!$this->live) {
+            $this->log('Not live, will not add new tasks');
+
+            return;
+        }
+
+        foreach ($to_add as $todo) {
+            $this->runToDoTxtAdd($todo);
+        }
+    }
+
     private function runToDoTxtAdd(string $todo): void
     {
         $this->log('Adding ' . $todo);
         echo $this->todotxt->runCommand('add', [$todo]) . "\n";
+    }
+
+    private function writeChangedScheduleFile(bool $changes_made, array $new_lines, string $repeat_file): void
+    {
+        if (!$changes_made) {
+            $this->debug('No changes to schedule file');
+
+            return;
+        }
+
+        $new_file_contents = implode(PHP_EOL, $new_lines);
+        $this->debug("New file contents:\n---\n" . $new_file_contents . "\n---\n");
+
+        if (!$this->live) {
+            $this->log('Not live, will not write changes');
+
+            return;
+        }
+
+        $this->log('Changes made, writing new file to ' . $repeat_file);
+        file_put_contents($repeat_file, implode(PHP_EOL, $new_lines));
+
     }
 }

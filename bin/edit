@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+editor "$TODO_FILE"
