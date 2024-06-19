@@ -82,5 +82,6 @@ If the code is unable to parse a date or line it will output an error and also c
 - [ ] Proper tests
 - [ ] Structs for the scheduled file
 - [ ] Split out the `ToDoTxt*` classes into a separate module for handling `todo-txt` files in PHP.
-- [ ] A command for users to delete repeated tasks
+- [ ] A command for users to delete repeated tasks (though can just edit)
 - [ ] A command to add repeated tasks directly, not just from the existing task list
+- [x] Editor for schedule file

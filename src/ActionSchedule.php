@@ -78,6 +78,8 @@ class ActionSchedule
                 return $this->actionScheduleList($argv);
             case 'process':
                 return $this->actionScheduleProcess($argv);
+            case 'edit':
+                return $this->actionScheduleEdit();
         }
         $this->echoUsage();
         return 0;
@@ -129,7 +131,7 @@ class ActionSchedule
         if ($recur) {
             try {
                 ActionSchedule::makeRepeatIntervalFromString($recur);
-            } catch (Exception $e) {
+            } catch (Exception) {
                 echo "ERROR: could not parse recurrence interval $recur\n";
                 return 1;
             }
@@ -158,9 +160,10 @@ class ActionSchedule
     {
         echo <<<USAGE
 Usage:
-    todo-txt {$this->command} add <task number> <date to schedule to> (<recurrence frequency>)
-    todo-txt {$this->command} process (live)
-    todo-txt {$this->command} ls|list (<search term>)
+    todo-txt $this->command add <task number> <date to schedule to> (<recurrence frequency>)
+    todo-txt $this->command process (live)
+    todo-txt $this->command ls|list (<search term>)
+    todo-txt $this->command edit
 
 USAGE;
     }
@@ -201,7 +204,7 @@ USAGE;
             if ($search) {
                 $scheduled = array_filter($scheduled, static fn(string $line) => str_contains($line, $search));
             }
-            echo implode("\n", $scheduled) . "\n---\n{$this->repeat_file}\n";
+            echo implode("\n", $scheduled) . "\n---\n$this->repeat_file\n";
             return 1;
         } catch (Throwable $throwable) {
             echo "ERROR: " . $throwable->getMessage();
@@ -349,5 +352,13 @@ USAGE;
         $this->log('Changes made, writing new file to ' . $repeat_file);
         file_put_contents($repeat_file, implode(PHP_EOL, $new_lines));
 
+    }
+
+    private function actionScheduleEdit(): int
+    {
+        $pipes = [];
+        $h_proc = proc_open('editor "' . $this->repeat_file . '"', [STDIN, STDOUT, STDERR], $pipes);
+
+        return proc_close($h_proc);
     }
 }

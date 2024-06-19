@@ -116,4 +116,12 @@ class ToDoTxtFile
     {
         return implode(PHP_EOL, array_map(static fn(ToDoTxtTask $task) => (string)$task, $tasks));
     }
+
+    private function launchEditor(): int
+    {
+        $pipes = [];
+        $h_proc = proc_open('editor "' . $this->to_do_file . '"', [STDIN, STDOUT, STDERR], $pipes);
+
+        return proc_close($h_proc);
+    }
 }
