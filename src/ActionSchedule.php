@@ -188,13 +188,17 @@ USAGE;
     public function addToRepeatFile(DateTimeImmutable $date, ToDoTxtTask $task, ?string $repeat_every): void
     {
         $current_contents = file_get_contents($this->repeat_file);
+
         // Remove any created and completed dates and done flag before adding to file
         $insert_task = (clone $task)->setCreated(null)->setDone(false)->setCompleted(null);
-        $new_line = $date->format('c') . ' ' . $insert_task;
+
         if ($repeat_every) {
+            // Assert it's a valid interval
             self::makeRepeatIntervalFromString($repeat_every);
-            $new_line .= ' repeat:' . $repeat_every;
+            $insert_task->setTag('repeat', $repeat_every);
         }
+
+        $new_line = $date->format('c') . ' ' . $insert_task;
         file_put_contents($this->repeat_file, rtrim($current_contents) . "\n" . $new_line);
     }
 

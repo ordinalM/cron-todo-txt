@@ -26,7 +26,7 @@ class ToDoTxtTask implements JsonSerializable
             throw new ToDoTxtException('Could not parse: ' . $line);
         }
 
-        $done = $matches[1] === 'x';
+        $done = !empty($matches[1]);
         $date1 = strtotime(trim($matches[3])) ?: null;
         $date2 = strtotime(trim($matches[4])) ?: null;
 
@@ -199,6 +199,28 @@ class ToDoTxtTask implements JsonSerializable
             self::KEY_COMPLETED => $this->completed,
             self::KEY_TEXT => $this->text,
         ];
+    }
+
+    public function setTag(string $name, string $value): self
+    {
+        $tag_text = self::makeTagText($name, $value);
+        $existing_tags = $this->findTags();
+
+        // Add new tags at the end of the text
+        if (!isset($existing_tags[$name])) {
+            $this->text = trim($this->text) . ' ' . $tag_text;
+            return $this;
+        }
+
+        // Replace existing tags with the new value
+        $this->text = str_replace(self::makeTagText($name, $existing_tags[$name]), $tag_text, $this->text);
+
+        return $this;
+    }
+
+    private static function makeTagText(string $name, string $value): string
+    {
+        return $name . ':' . $value;
     }
 
     public function findTags(): array
