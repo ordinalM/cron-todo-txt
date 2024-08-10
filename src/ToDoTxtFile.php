@@ -2,10 +2,14 @@
 
 namespace OrdinalM\CronTodoTxt;
 
-class ToDoTxtFile
+use ArrayIterator;
+use IteratorAggregate;
+use Traversable;
+
+class ToDoTxtFile implements IteratorAggregate
 {
     private ?string $to_do_file = null;
-    /** @var list<ToDoTxtTask> */
+    /** @var list<ToDoTxtTask|null> */
     private ?array $tasks = null;
 
     /**
@@ -48,22 +52,28 @@ class ToDoTxtFile
     /**
      * @throws ToDoTxtException
      */
-    private function assertGoodToDoFile(): void
+    private function assertGoodToDoFile(string $filename = null): void
     {
-        if (!$this->to_do_file) {
+        if (!$filename) {
+            $filename = $this->to_do_file;
+        }
+        if (!$filename) {
             throw new ToDoTxtException('todo_file not set');
         }
-        if (!file_exists($this->to_do_file)) {
+        if (!file_exists($filename)) {
             throw new ToDoTxtException($this->to_do_file . ' does not exist');
         }
-        if (!is_readable($this->to_do_file)) {
+        if (!is_readable($filename)) {
             throw new ToDoTxtException($this->to_do_file . ' is not readable');
         }
-        if (!is_writeable($this->to_do_file)) {
+        if (!is_writeable($filename)) {
             throw new ToDoTxtException($this->to_do_file . ' is not writeable');
         }
     }
 
+    /**
+     * @throws ToDoTxtException
+     */
     public function getTask(int $n): ?ToDoTxtTask
     {
         $this->assertHasLoaded();
@@ -72,6 +82,9 @@ class ToDoTxtFile
         return $task->isEmpty() ? null : $task;
     }
 
+    /**
+     * @throws ToDoTxtException
+     */
     private function assertHasLoaded(): void
     {
         if ($this->tasks) {
@@ -83,12 +96,12 @@ class ToDoTxtFile
     /**
      * @throws ToDoTxtException
      */
-    public function dropLine(int $n): self
+    public function deleteTask(int $n): self
     {
         if ($n <= 0 || $n > count($this->tasks)) {
             throw new ToDoTxtException($n . ' is outside the range of this file');
         }
-        $this->tasks[$n - 1]->setText('');
+        $this->tasks[$n - 1] = new ToDoTxtTask();
 
         return $this;
     }
@@ -101,20 +114,28 @@ class ToDoTxtFile
     /**
      * @throws ToDoTxtException
      */
-    public function writeTasks(): self
+    public function writeToFile(string $filename = null): self
     {
-        $this->assertGoodToDoFile();
-        file_put_contents($this->to_do_file, self::makeFileContentsFromTasks($this->tasks));
+        if (!$filename) {
+            $filename = $this->to_do_file;
+        }
+        $this->assertGoodToDoFile($filename);
+        file_put_contents($filename, $this->__toString());
 
         return $this;
     }
 
-    /**
-     * @param list<ToDoTxtTask> $tasks
-     */
-    private static function makeFileContentsFromTasks(array $tasks): string
+    public function __toString(): string
     {
-        return implode(PHP_EOL, array_map(static fn(ToDoTxtTask $task) => (string)$task, $tasks));
+        return implode(PHP_EOL, array_map(static fn(ToDoTxtTask $task) => (string)$task, $this->tasks));
+    }
+
+    /**
+     * @return Traversable<ToDoTxtTask>
+     */
+    public function getIterator(): Traversable
+    {
+        return new ArrayIterator($this->tasks);
     }
 
     private function launchEditor(): int

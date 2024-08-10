@@ -82,6 +82,8 @@ class ActionSchedule
                 return $this->actionScheduleProcess($argv);
             case 'edit':
                 return $this->actionScheduleEdit();
+            case 'pull':
+                return $this->actionSchedulePull($argv);
         }
         $this->echoUsage();
         return 0;
@@ -151,7 +153,7 @@ class ActionSchedule
 
         $this->addToRepeatFile((new DateTimeImmutable())->setTimestamp($schedule_date), $task, $recur);
         echo "Added to repeat file\n";
-        $todotxt_file->dropLine($task_n)->writeTasks();
+        $todotxt_file->deleteTask($task_n)->writeToFile();
         echo "Removed from todo.txt\n";
 
         return 0;
@@ -164,6 +166,7 @@ class ActionSchedule
 Usage:
     todo-txt $this->command add <task number> <date to schedule to> (<recurrence frequency>)
     todo-txt $this->command process (live)
+    todo-txt $this->command pull (live)
     todo-txt $this->command ls|list (<search term>)
     todo-txt $this->command edit
 
@@ -212,9 +215,7 @@ USAGE;
      */
     public function actionScheduleProcess(array $argv): int
     {
-        $is_live = ($argv[0] ?? false) === 'live';
-        $this->debug = !$is_live;
-        $this->live = $is_live;
+        $this->setLiveDebugFlags($argv);
 
         $repeat_file = ScheduledFile::createFromFile($this->repeat_file);
 
@@ -262,6 +263,13 @@ USAGE;
             $this->writeChangedScheduleFile($new_scheduled_file);
         }
         return 0;
+    }
+
+    private function setLiveDebugFlags(array $argv): void
+    {
+        $is_live = ($argv[0] ?? false) === 'live';
+        $this->debug = !$is_live;
+        $this->live = $is_live;
     }
 
     /**
@@ -313,5 +321,55 @@ USAGE;
         $h_proc = proc_open('editor "' . $this->repeat_file . '"', [STDIN, STDOUT, STDERR], $pipes);
 
         return proc_close($h_proc);
+    }
+
+    /**
+     * @throws ToDoTxtException
+     */
+    private function actionSchedulePull(array $argv): int
+    {
+        $this->setLiveDebugFlags($argv);
+
+        // Load existing files
+        $todo_file = ToDoTxtFile::loadFromFile();
+        $scheduled = ScheduledFile::createFromFile($this->repeat_file);
+        $changes_made = false;
+
+        foreach ($todo_file as $n => $task) {
+            $threshold = $task->getDateTag(ToDoTxtTask::TAG_THRESHOLD);
+            if (!$threshold) {
+                continue;
+            }
+            $this->debug(sprintf("Found threshold tag %s in line %d:\n%s", $threshold->format('c'), $n + 1, $task));
+            if ($threshold <= $this->Now) {
+                $this->debug('In the past, ignoring');
+                continue;
+            }
+            $changes_made = true;
+            $scheduled_task = ScheduledTask::createFromTask($task);
+            $this->log(sprintf("Will remove task %d and insert into scheduled list:\n%s", $n, $scheduled_task));
+            $todo_file->deleteTask($n + 1);
+            $scheduled->addScheduledTask($scheduled_task);
+        }
+
+        if (!$changes_made) {
+            $this->log('No changes made');
+
+            return 0;
+        }
+
+        $this->debug("New scheduled file:\n" . $scheduled);
+        $this->debug("New todo file:\n" . $todo_file);
+        if (!$this->live) {
+            $this->log('Not live, will not make changes');
+
+            return 0;
+        }
+
+        $this->log('Writing changes');
+        $scheduled->writeToFile($this->repeat_file);
+        $todo_file->writeToFile();
+
+        return 0;
     }
 }

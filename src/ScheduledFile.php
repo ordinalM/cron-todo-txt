@@ -38,7 +38,12 @@ class ScheduledFile implements IteratorAggregate
 
     public function writeToFile(string $filename): void
     {
-        file_put_contents($filename, implode(PHP_EOL, $this->scheduled_tasks));
+        file_put_contents($filename, (string)$this);
+    }
+
+    public function __toString(): string
+    {
+        return implode(PHP_EOL, $this->scheduled_tasks);
     }
 
     /**

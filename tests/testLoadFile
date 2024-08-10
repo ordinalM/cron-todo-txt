@@ -70,8 +70,8 @@ try {
         assertTrue(($task->isDone()) === in_array($n, $is_done), 'bad done status');
     }
     $context_line = $todo_file->getTask(7);
-    assertSameArray(['context1', 'context2'], $context_line->getContexts(), 'contexts');
-    assertSameArray(['project1', 'project2'], $context_line->getProjects(), 'projects');
+    assertSameArray(['context1', 'context2'], $context_line->findContexts(), 'contexts');
+    assertSameArray(['project1', 'project2'], $context_line->findProjects(), 'projects');
 } catch (Throwable $e) {
     echo "FAILURE!\n" . $e . "\n";
     removeTestFile($test_file);

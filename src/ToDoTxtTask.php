@@ -2,6 +2,7 @@
 
 namespace OrdinalM\CronTodoTxt;
 
+use DateTimeImmutable;
 use JsonSerializable;
 
 class ToDoTxtTask implements JsonSerializable
@@ -11,6 +12,10 @@ class ToDoTxtTask implements JsonSerializable
     private const KEY_COMPLETED = 'completed';
     private const KEY_DONE = 'done';
     private const KEY_TEXT = 'text';
+    private const PREFIX_PROJECT = '+';
+    private const PREFIX_CONTEXT = '@';
+    public const TAG_THRESHOLD = 't';
+
     private ?int $created = null;
     private ?int $completed = null;
     private string $text = '';
@@ -87,12 +92,12 @@ class ToDoTxtTask implements JsonSerializable
         return date('Y-m-d', $date);
     }
 
-    public function getContexts(): array
+    public function findContexts(): array
     {
-        return $this->getWordsWithPrefix('@');
+        return $this->findWordsWithPrefix('@');
     }
 
-    private function getWordsWithPrefix(string $prefix): array
+    private function findWordsWithPrefix(string $prefix): array
     {
         $prefix_words = [];
         $todo_words = explode(" ", $this->text);
@@ -106,9 +111,41 @@ class ToDoTxtTask implements JsonSerializable
         return array_unique($prefix_words);
     }
 
-    public function getProjects(): array
+    public function hasContext(string $context): bool
     {
-        return $this->getWordsWithPrefix('+');
+        return $this->hasWordWithPrefix($context, self::PREFIX_PROJECT);
+    }
+
+    private function hasWordWithPrefix(string $context, string $prefix)
+    {
+        return str_contains($this->text, $prefix . $context);
+    }
+
+    public function findProjects(): array
+    {
+        return $this->findWordsWithPrefix(self::PREFIX_PROJECT);
+    }
+
+    public function addProject(string $project): self
+    {
+        if ($this->hasProject($project)) {
+            return $this;
+        }
+        $this->appendToText(self::PREFIX_PROJECT . $project);
+
+        return $this;
+    }
+
+    public function hasProject(string $project): bool
+    {
+        return $this->hasWordWithPrefix($project, self::PREFIX_CONTEXT);
+    }
+
+    private function appendToText(string $string): self
+    {
+        $this->text = trim($this->text) . ' ' . $string;
+
+        return $this;
     }
 
     public function getCreated(): ?int
@@ -190,7 +227,7 @@ class ToDoTxtTask implements JsonSerializable
         return $this->toArray();
     }
 
-    public function toArray(): array
+    private function toArray(): array
     {
         return [
             self::KEY_DONE => $this->done,
@@ -208,8 +245,7 @@ class ToDoTxtTask implements JsonSerializable
 
         // Add new tags at the end of the text
         if (!isset($existing_tags[$name])) {
-            $this->text = trim($this->text) . ' ' . $tag_text;
-            return $this;
+            return $this->appendToText($tag_text);
         }
 
         // Replace existing tags with the new value
@@ -217,7 +253,6 @@ class ToDoTxtTask implements JsonSerializable
 
         return $this;
     }
-
 
     private static function makeTagText(string $name, string $value): string
     {
@@ -249,6 +284,15 @@ class ToDoTxtTask implements JsonSerializable
         return $this->findTags()[$name] ?? null;
     }
 
+    public function getDateTag(string $name): ?DateTimeImmutable
+    {
+        $value = $this->getTag($name);
+        if (!$value) {
+            return null;
+        }
+        return (new DateTimeImmutable())->setTimestamp(strtotime($value));
+    }
+
     public function deleteTag(string $name): self
     {
         $tags = $this->findTags($name);
@@ -257,7 +301,13 @@ class ToDoTxtTask implements JsonSerializable
         }
         // Remove the tag's text
         $this->text = str_replace(self::makeTagText($name, $tags[$name]), '', $this->text);
-        // Strip extraneous spaces due to removing this tag
+
+        return $this->cleanTrim();
+    }
+
+    private function cleanTrim(): self
+    {
+        // Strip extraneous spaces due to removal of text
         $this->text = trim(preg_replace('/ +/', ' ', $this->text));
 
         return $this;

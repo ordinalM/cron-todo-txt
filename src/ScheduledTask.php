@@ -8,7 +8,6 @@ use Exception;
 
 class ScheduledTask
 {
-    private const TAG_THRESHOLD = 't';
     private const TAG_REPEAT_INTERVAL = 'repeat';
     private ToDoTxtTask $task;
 
@@ -33,7 +32,7 @@ class ScheduledTask
 
     public function setThreshold(DateTimeImmutable $date): self
     {
-        $this->task->setTag(self::TAG_THRESHOLD, $date->format('c'));
+        $this->task->setTag(ToDoTxtTask::TAG_THRESHOLD, $date->format('c'));
 
         return $this;
     }
@@ -43,7 +42,7 @@ class ScheduledTask
      */
     public function getThreshold(): DateTimeImmutable
     {
-        $threshold_raw = $this->task->findTags()[self::TAG_THRESHOLD] ?? null;
+        $threshold_raw = $this->task->findTags()[ToDoTxtTask::TAG_THRESHOLD] ?? null;
         if (!$threshold_raw) {
             throw new CronToDoTxtException('Cannot find a threshold tag in ' . $this->task);
         }
@@ -93,6 +92,6 @@ class ScheduledTask
     public function makeInsertableTask(): ToDoTxtTask
     {
         // Clear the threshold and repeat tags
-        return (clone $this->task)->deleteTag(self::TAG_THRESHOLD)->deleteTag(self::TAG_REPEAT_INTERVAL);
+        return (clone $this->task)->deleteTag(ToDoTxtTask::TAG_THRESHOLD)->deleteTag(self::TAG_REPEAT_INTERVAL);
     }
 }
