@@ -114,9 +114,9 @@ class ActionSchedule
             echo "ERROR: no such line $task_n\n";
             exit(1);
         }
-        echo sprintf("Will schedule this task:\n%s\n", $task->getText());
+        echo sprintf("Will schedule this task:\n%s\n", $task);
         if ($task->isDone()) {
-            echo "WARNING: this task has been marked complete.\n";
+            echo "WARNING: this task has been marked complete - will remove this flag when scheduling.\n";
         }
 
         $date_raw = $argv[1] ?? '';
@@ -188,7 +188,9 @@ USAGE;
     public function addToRepeatFile(DateTimeImmutable $date, ToDoTxtTask $task, ?string $repeat_every): void
     {
         $current_contents = file_get_contents($this->repeat_file);
-        $new_line = $date->format('c') . ' ' . $task->getText();
+        // Remove any created and completed dates and done flag before adding to file
+        $insert_task = (clone $task)->setCreated(null)->setDone(false)->setCompleted(null);
+        $new_line = $date->format('c') . ' ' . $insert_task;
         if ($repeat_every) {
             self::makeRepeatIntervalFromString($repeat_every);
             $new_line .= ' repeat:' . $repeat_every;

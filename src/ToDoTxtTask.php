@@ -2,34 +2,54 @@
 
 namespace OrdinalM\CronTodoTxt;
 
-class ToDoTxtTask
+use JsonSerializable;
+
+class ToDoTxtTask implements JsonSerializable
 {
+    private const KEY_PRIORITY = 'priority';
+    private const KEY_CREATED = 'created';
+    private const KEY_COMPLETED = 'completed';
+    private const KEY_DONE = 'done';
+    private const KEY_TEXT = 'text';
     private ?int $created = null;
     private ?int $completed = null;
     private string $text = '';
     private bool $done = false;
+    private ?ToDoTxtPriority $priority = null;
 
     /**
      * @throws ToDoTxtException
      */
     public static function parseFromString(string $line): self
     {
-        if (!preg_match('/^(x )?(\d{4}-\d{2}-\d{2} )?(\d{4}-\d{2}-\d{2} )?(.*)$/', trim($line), $matches)) {
+        if (!preg_match('/^(x )?(\([A-Za-z]\) )?(\d{4}-\d{2}-\d{2} )?(\d{4}-\d{2}-\d{2} )?(.*)$/', trim($line), $matches, PREG_UNMATCHED_AS_NULL)) {
             throw new ToDoTxtException('Could not parse: ' . $line);
         }
 
-        $done = $matches[1] !== '';
-        $date1 = strtotime(trim($matches[2])) ?: null;
-        $date2 = strtotime(trim($matches[3])) ?: null;
+        $done = $matches[1] === 'x';
+        $date1 = strtotime(trim($matches[3])) ?: null;
+        $date2 = strtotime(trim($matches[4])) ?: null;
 
-        $task = (new self())->setText($matches[4])->setDone($done);
-        if ($date2) {
+        $task = (new self())->setText($matches[5])->setDone($done);
+
+        $priority_code = $matches[2] ?: null;
+        if ($priority_code) {
+            $task->setPriority(new ToDoTxtPriority($priority_code));
+        }
+
+        if ($date1 && $date2) {
             $task->setCompleted($date1)->setCreated($date2);
         } elseif ($date1) {
             $task->setCreated($date1);
         }
 
         return $task;
+    }
+
+    public function setPriority(?ToDoTxtPriority $priority): ToDoTxtTask
+    {
+        $this->priority = $priority;
+        return $this;
     }
 
     public function __toString(): string
@@ -41,6 +61,9 @@ class ToDoTxtTask
         $line = [];
         if ($this->done) {
             $line[] = 'x';
+        }
+        if ($this->priority) {
+            $line[] = $this->priority->display();
         }
         if ($this->completed) {
             $line[] = self::makeDateString($this->completed);
@@ -160,5 +183,21 @@ class ToDoTxtTask
         $this->done = false;
 
         return $this;
+    }
+
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
+    }
+
+    public function toArray(): array
+    {
+        return [
+            self::KEY_DONE => $this->done,
+            self::KEY_PRIORITY => $this->priority,
+            self::KEY_CREATED => $this->created,
+            self::KEY_COMPLETED => $this->completed,
+            self::KEY_TEXT => $this->text,
+        ];
     }
 }
