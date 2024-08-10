@@ -218,11 +218,15 @@ class ToDoTxtTask implements JsonSerializable
         return $this;
     }
 
+
     private static function makeTagText(string $name, string $value): string
     {
         return $name . ':' . $value;
     }
 
+    /**
+     * @return array<string, string>
+     */
     public function findTags(): array
     {
         if (!preg_match_all('/([a-z]+):([^ ]+)/', $this->text, $matches, PREG_SET_ORDER)) {
@@ -238,5 +242,24 @@ class ToDoTxtTask implements JsonSerializable
             $tags[$tag[1]] = $tag[2];
         }
         return $tags;
+    }
+
+    public function getTag(string $name): ?string
+    {
+        return $this->findTags()[$name] ?? null;
+    }
+
+    public function deleteTag(string $name): self
+    {
+        $tags = $this->findTags($name);
+        if (!isset($tags[$name])) {
+            return $this;
+        }
+        // Remove the tag's text
+        $this->text = str_replace(self::makeTagText($name, $tags[$name]), '', $this->text);
+        // Strip extraneous spaces due to removing this tag
+        $this->text = trim(preg_replace('/ +/', ' ', $this->text));
+
+        return $this;
     }
 }

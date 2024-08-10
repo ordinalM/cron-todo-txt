@@ -2,14 +2,12 @@
 
 namespace OrdinalM\CronTodoTxt;
 
-use DateInterval;
 use DateTimeImmutable;
 use Exception;
 use Throwable;
 
 class ActionSchedule
 {
-    private const REPEAT_REGEX = '/ (repeat|rec):([^ ]+)/';
     private const SCHEDULED_FILE = 'scheduled.txt';
     private readonly DateTimeImmutable $Now;
     private readonly ToDoTxt $todotxt;
@@ -62,6 +60,10 @@ class ActionSchedule
         echo sprintf("[%s] %s\n", date('c'), trim($message));
     }
 
+    /**
+     * @throws CronToDoTxtException
+     * @throws ToDoTxtException
+     */
     public function action(array $argv): int
     {
         // first arg is the full shell command which we don't need
@@ -130,7 +132,7 @@ class ActionSchedule
         $recur = $argv[2] ?? null;
         if ($recur) {
             try {
-                ActionSchedule::makeRepeatIntervalFromString($recur);
+                ScheduledTask::makeRepeatIntervalFromString($recur);
             } catch (Exception) {
                 echo "ERROR: could not parse recurrence interval $recur\n";
                 return 1;
@@ -171,35 +173,20 @@ USAGE;
     /**
      * @throws Exception
      */
-    public static function makeRepeatIntervalFromString(string $repeat_string): DateInterval
-    {
-        $repeat_string = strtoupper($repeat_string);
-        // In case I forget to add a P at the start
-        if (!str_starts_with($repeat_string, 'P')) {
-            $repeat_string = 'P' . $repeat_string;
-        }
-
-        return new DateInterval($repeat_string);
-    }
-
-    /**
-     * @throws Exception
-     */
     public function addToRepeatFile(DateTimeImmutable $date, ToDoTxtTask $task, ?string $repeat_every): void
     {
-        $current_contents = file_get_contents($this->repeat_file);
+        $repeat_file = ScheduledFile::createFromFile($this->repeat_file);
 
         // Remove any created and completed dates and done flag before adding to file
-        $insert_task = (clone $task)->setCreated(null)->setDone(false)->setCompleted(null);
+        $scheduled_task = ScheduledTask::createFromTask($task)->setThreshold($date);
 
         if ($repeat_every) {
             // Assert it's a valid interval
-            self::makeRepeatIntervalFromString($repeat_every);
-            $insert_task->setTag('repeat', $repeat_every);
+            ScheduledTask::makeRepeatIntervalFromString($repeat_every);
+            $scheduled_task->setRepeat($repeat_every);
         }
 
-        $new_line = $date->format('c') . ' ' . $insert_task;
-        file_put_contents($this->repeat_file, rtrim($current_contents) . "\n" . $new_line);
+        $repeat_file->addScheduledTask($scheduled_task)->writeToFile($this->repeat_file);
     }
 
     public function actionScheduleList(array $argv): int
@@ -218,101 +205,68 @@ USAGE;
         }
     }
 
+    /**
+     * @throws CronToDoTxtException
+     * @throws ToDoTxtException
+     * @throws Exception
+     */
     public function actionScheduleProcess(array $argv): int
     {
         $is_live = ($argv[0] ?? false) === 'live';
         $this->debug = !$is_live;
         $this->live = $is_live;
 
-        $repeat_file = $this->repeat_file;
+        $repeat_file = ScheduledFile::createFromFile($this->repeat_file);
 
         $to_add = [];
-        $new_lines = [];
+        $new_scheduled_file = new ScheduledFile();
         $changes_made = false;
 
-        foreach (file($repeat_file) as $n => $line) {
-            try {
-                $line = trim($line);
-                if (str_starts_with($line, '#') || !$line) {
-                    // Keep comments and blanks
-                    $new_lines[] = $line;
-                    continue;
-                }
-                $this->debug('Processing: ' . $line);
-                if (!preg_match('/^([^ ]+) (.*)$/', $line, $matches)) {
-                    throw new CronToDoTxtException('Invalid repeat line format: ' . $line);
-                }
-                [, $raw_time_string, $todo] = $matches;
-                $timestamp = strtotime($raw_time_string);
-                if (!$timestamp) {
-                    throw new CronToDoTxtException('Could not parse date from: ' . $line);
-                }
-                $date = (new DateTimeImmutable())->setTimestamp($timestamp);
-                $this->debug('Parsed date ' . $date->format('c'));
+        foreach ($repeat_file as $n => $scheduled_task) {
+            $this->debug('Processing: ' . $scheduled_task);
+            $threshold_date = $scheduled_task->getThreshold();
+            $this->debug('Parsed date ' . $threshold_date->format('c'));
 
-                $repeat = self::getRepeatIntervalFromLine($line);
-                if ($repeat) {
-                    $new_date = $date->add($repeat);
-                    $this->debug('Parsed repeat interval, new date would be ' . $new_date->format('c'));
-                } else {
-                    $new_date = null;
-                    $this->debug('Does not repeat');
-                }
-
-                if ($date > $this->Now) {
-                    $this->debug('Is in future, skipping');
-                    $new_lines[] = $line;
-                    continue;
-                }
-
-                $to_add[] = self::stripRepeatFromToDo($todo);
-
-                // There will always be some sort of change to the schedule file if we reach this point
-                $changes_made = true;
-
-                if (!$new_date) {
-                    $this->log(sprintf("Dropping line %d: %s", $n, $line));
-                    continue;
-                }
-
-                $new_line = $new_date->format('c') . ' ' . $todo;
-                $this->log(sprintf("Will change line %d to: %s", $n, $new_line));
-                $new_lines[] = $new_line;
-            } catch (Throwable $throwable) {
-                $this->log(sprintf("EXCEPTION: %s on line %d, will comment out: %s", get_class($throwable), $n + 1, $throwable->getMessage()));
-                $new_lines[] = '# ' . $line;
-                $changes_made = true;
+            $repeat = $scheduled_task->getRepeat();
+            if ($repeat) {
+                $new_date = $threshold_date->add($repeat);
+                $this->debug('Parsed repeat interval, new date would be ' . $new_date->format('c'));
+            } else {
+                $new_date = null;
+                $this->debug('Does not repeat');
             }
+
+            if ($threshold_date > $this->Now) {
+                $this->debug('Is in future, skipping');
+                $new_scheduled_file->addScheduledTask($scheduled_task);
+                continue;
+            }
+
+            $to_add[] = $scheduled_task->makeInsertableTask();
+
+            // There will always be some sort of change to the schedule file if we reach this point
+            $changes_made = true;
+
+            if (!$new_date) {
+                $this->log(sprintf("Dropping line %d: %s", $n, $scheduled_task));
+                continue;
+            }
+
+            $new_scheduled_task = (clone $scheduled_task)->setThreshold($new_date);
+            $this->log(sprintf("Will change line %d to:\n%s", $n, $new_scheduled_task));
+            $new_scheduled_file->addScheduledTask($new_scheduled_task);
         }
 
         $this->addNewToDos($to_add);
-        $this->writeChangedScheduleFile($changes_made, $new_lines, $repeat_file);
-
+        if ($changes_made) {
+            $this->writeChangedScheduleFile($new_scheduled_file);
+        }
         return 0;
     }
 
     /**
-     * @throws CronToDoTxtException
+     * @param list<ToDoTxtTask> $to_add
      */
-    private static function getRepeatIntervalFromLine(string $line): ?DateInterval
-    {
-        $repeat = preg_match(self::REPEAT_REGEX, $line, $matches);
-        if (!$repeat) {
-            return null;
-        }
-        $repeat_string = $matches[2];
-        try {
-            return self::makeRepeatIntervalFromString($repeat_string);
-        } catch (Throwable) {
-            throw new CronToDoTxtException('Could not parse repeat interval: ' . $repeat_string);
-        }
-    }
-
-    private static function stripRepeatFromToDo(string $todo): string
-    {
-        return preg_replace(self::REPEAT_REGEX, '', $todo);
-    }
-
     private function addNewToDos(array $to_add): void
     {
         if (count($to_add) === 0) {
@@ -320,6 +274,8 @@ USAGE;
 
             return;
         }
+
+        $this->debug("Tasks to add:\n" . implode("\n", $to_add));
 
         if (!$this->live) {
             $this->log('Not live, will not add new tasks');
@@ -332,32 +288,23 @@ USAGE;
         }
     }
 
-    private function runToDoTxtAdd(string $todo): void
+    private function runToDoTxtAdd(ToDoTxtTask $todo): void
     {
-        $this->log('Adding ' . $todo);
+        $this->log('Adding: ' . $todo);
         echo $this->todotxt->runCommand('add', [$todo]) . "\n";
     }
 
-    private function writeChangedScheduleFile(bool $changes_made, array $new_lines, string $repeat_file): void
+    private function writeChangedScheduleFile(ScheduledFile $scheduled_file): void
     {
-        if (!$changes_made) {
-            $this->debug('No changes to schedule file');
-
-            return;
-        }
-
-        $new_file_contents = implode(PHP_EOL, $new_lines);
-        $this->debug("New file contents:\n---\n" . $new_file_contents . "\n---\n");
-
         if (!$this->live) {
             $this->log('Not live, will not write changes');
 
             return;
         }
 
-        $this->log('Changes made, writing new file to ' . $repeat_file);
-        file_put_contents($repeat_file, implode(PHP_EOL, $new_lines));
-
+        $this->log('Changes made, writing new file to ' . $this->repeat_file);
+        $scheduled_file->writeToFile($this->repeat_file);
+        $this->log("$this->repeat_file now:\n" . file_get_contents($this->repeat_file));
     }
 
     private function actionScheduleEdit(): int
