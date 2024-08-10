@@ -200,4 +200,21 @@ class ToDoTxtTask implements JsonSerializable
             self::KEY_TEXT => $this->text,
         ];
     }
+
+    public function findTags(): array
+    {
+        if (!preg_match_all('/([a-z]+):([^ ]+)/', $this->text, $matches, PREG_SET_ORDER)) {
+            return [];
+        }
+        $tags = [];
+        foreach ($matches as $tag) {
+            // Don't add URLs as tags
+            $url_scheme = parse_url($tag[0], PHP_URL_SCHEME);
+            if (in_array($url_scheme, ['http', 'https', 'ftp'])) {
+                continue;
+            }
+            $tags[$tag[1]] = $tag[2];
+        }
+        return $tags;
+    }
 }
