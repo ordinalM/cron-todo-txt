@@ -127,7 +127,7 @@ class ToDoTxtFile implements IteratorAggregate
 
     public function __toString(): string
     {
-        return implode(PHP_EOL, array_map(static fn(ToDoTxtTask $task) => (string)$task, $this->tasks));
+        return implode(PHP_EOL, array_map(static fn(ToDoTxtTask $task) => (string)$task, $this->tasks)) . PHP_EOL;
     }
 
     /**

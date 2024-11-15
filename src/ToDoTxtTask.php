@@ -77,7 +77,7 @@ class ToDoTxtTask implements JsonSerializable
         } elseif ($this->created) {
             $line[] = self::makeDateString($this->created);
         }
-        $line[] = $this->text;
+        $line[] = trim($this->text);
 
         return implode(' ', $line);
     }
@@ -116,7 +116,7 @@ class ToDoTxtTask implements JsonSerializable
         return $this->hasWordWithPrefix($context, self::PREFIX_PROJECT);
     }
 
-    private function hasWordWithPrefix(string $context, string $prefix)
+    private function hasWordWithPrefix(string $context, string $prefix): bool
     {
         return str_contains($this->text, $prefix . $context);
     }
